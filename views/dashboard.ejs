@@ -1,0 +1,14 @@
+<h1>Welcome to your Dashboard, <%= user.username %>!</h1>
+
+<% if (user.role === 'admin') { %>
+    <h2>Admin Dashboard</h2>
+    <ul>
+        <% for (const currentUser of USERS) { %>
+            <li><%= currentUser.username %></li>
+        <% } %>
+    </ul>
+<% } else { %>
+    <p>This is your personalized dashboard.</p>
+<% } %>
+
+<a href="/logout">Logout</a>
