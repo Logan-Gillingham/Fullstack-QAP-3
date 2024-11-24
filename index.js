@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
     session({
-        secret: "replace_this_with_a_secure_key",
+        secret: "163546520654231638462164",
         resave: false,
         saveUninitialized: true,
     })
@@ -26,8 +26,8 @@ const USERS = [
         username: "AdminUser",
         email: "admin@example.com",
         password: bcrypt.hashSync("admin123", SALT_ROUNDS), //In a database, you'd just store the hashes, but for 
-                                                            // our purposes we'll hash these existing users when the 
-                                                            // app loads
+        // our purposes we'll hash these existing users when the 
+        // app loads
         role: "admin",
     },
     {
@@ -45,8 +45,34 @@ app.get("/login", (request, response) => {
 });
 
 // POST /login - Allows a user to login
-app.post("/login", (request, response) => {
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
 
+    let user;
+
+    for (const currentUser of USERS) {
+        if (currentUser.email === email) {
+            user = currentUser;
+            break;
+        }
+    }
+
+    if (!user) {
+        return res.render('login', { error: 'Invalid email or password' });
+    }
+
+    // Compare the hashed password with the provided password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+        return res.render('login', { error: 'Invalid email or password' });
+    }
+
+    // Create a session for the user
+    req.session.user = user;
+
+    // Redirect to the dashboard
+    res.redirect('/dashboard');
 });
 
 // GET /signup - Render signup form
@@ -55,8 +81,29 @@ app.get("/signup", (request, response) => {
 });
 
 // POST /signup - Allows a user to signup
-app.post("/signup", (request, response) => {
-    
+app.post("/signup", async (req, res) => {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+        return res.render('signup', { error: 'Please fill in all fields' });
+    }
+
+    const existingUser = USERS.find(user => user.email === email);
+    if (existingUser) {
+        return res.render('signup', { error: 'Email already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const newUser = {
+        id: USERS.length + 1,
+        username,
+        email,
+        password: hashedPassword,
+        role: 'user'
+    };
+    USERS.push(newUser);
+
+    res.redirect('/login');
 });
 
 // GET / - Render index page or redirect to landing if logged in
@@ -69,7 +116,25 @@ app.get("/", (request, response) => {
 
 // GET /landing - Shows a welcome page for users, shows the names of all users if an admin
 app.get("/landing", (request, response) => {
-    
+
+});
+
+app.get("/dashboard", (req, res) => {
+    if (!req.session.user) {
+        return res.redirect('/login');
+    }
+
+    const user = req.session.user;
+    if (user.role === 'admin') {
+        res.render('dashboard', { user, USERS });
+    } else {
+        res.render('dashboard', { user });
+    }
+});
+
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
 });
 
 // Start server
